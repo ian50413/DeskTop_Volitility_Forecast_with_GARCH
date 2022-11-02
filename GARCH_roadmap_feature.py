@@ -7,42 +7,6 @@ Created on Tue Dec 28 11:32:29 2021
 Using GARCH model to generate predictive values with two dependent variables: roadmap_invoice_qty & rolling_q_invoice_qty
 """
 
-#%% plot figures
-emea[['C Series-19.5','invoice_pct_change_C Series-19.5']]
-#Plot Invoice QTY pct change for every platform
-for i in dt_roadmap_emea_invoice.columns:
-    try:
-        pf = dt_roadmap_emea_invoice[[f'{i}_invoice', f'invoice_pct_change_{i}']]
-        pf.dropna(inplace=True)
-        fig_ori = pf[f'{i}_invoice'].plot(figsize=(10, 5), title=f'{i} Invoice QTY').get_figure()
-        fig_ori.savefig('C:/Users/Ian.Chen/Desktop/DT FCST/1224_Invoice_qty/' + f"Invoice_QTY/{i}_Invoice_QTY.png")
-        fig_ori.clear()
-        fig_pct = pf[f'invoice_pct_change_{i}'].plot(figsize=(10, 5), title=f'{i} Percent Change in Invoice QTY').get_figure()
-        fig_pct.savefig('C:/Users/Ian.Chen/Desktop/DT FCST/1224_Invoice_qty/' + f"pct_change_fig/{i}_pct_change.png")
-        fig_pct.clear()
-    except:
-        pass
-
-#%%
-#define ts_plot
-def ts_plot(residuals, stan_residuals, lags=18):
-    residuals.plot(title='GARCH Residuals', figsize=(15, 10))
-    plt.show()
-    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 10))
-    ax[0].set_title('GARCH Standardized Residuals KDE')
-    ax[1].set_title('GARCH Standardized Resduals Probability Plot')    
-    residuals.plot(kind='kde', ax=ax[0])
-    probplot(stan_residuals, dist='norm', plot=ax[1])
-    plt.show()
-    acf = plot_acf(stan_residuals, lags=lags)
-    pacf = plot_pacf(stan_residuals, lags=lags)
-    acf.suptitle('GARCH Model Standardized Residual Autocorrelation', fontsize=20)
-    acf.set_figheight(5)
-    acf.set_figwidth(15)
-    pacf.set_figheight(5)
-    pacf.set_figwidth(15)
-    plt.show()
-
 #%% import stats tools
 import os
 import pandas as pd
@@ -87,10 +51,6 @@ dt_roadmap_invoice = dt[dt['region']=='CHINA'].pivot_table(index="time_period", 
 region = dt_roadmap_invoice.copy()
 df = pd.DataFrame()
 
-#底下這兩行意義不明
-#create empty df with only regional time_period index
-# df = emea.drop(emea, axis = 1)
-
 for i in region.columns:
     empty_df = pd.DataFrame()
     func = []
@@ -134,30 +94,13 @@ for i in region.columns:
         #Merge processed columns back to complete time period index df
         single_roadmap = complete_tp.copy()
         complete_tp = pd.DataFrame()
-######################
-        # model_garch_1_1 = arch_model(single_roadmap.iloc[:,1], mean = "Constant", vol = "GARCH", p = 1, q = 1)
-        # model_garch_1_1 = arch_model(single_roadmap.iloc[:,1][1:], mean = "Constant", vol = "GARCH", p = 1, o=0, q = 1, dist="Normal")
-        # results_garch_1_1 = model_garch_1_1.fit(update_freq = 5)
-        # results_garch_1_1.summary() 
-        #Longer horizon forecasts can be computed by passing the parameter horizon.
-        # forecasts = results_garch_1_1.forecast(horizon=5, reindex=False)
-        #The default forecast only produces 1-step ahead forecasts.
-        # print(forecasts.residual_variance)
         
 #use complete single roadmap data to run GARCH MODEL(p,q); 
 #"p" = the number of autoregressive lags and "q" =  the number of ARCH terms.
-#run garch(1,1) #specifying the model and estimating parameters.
-     #======================        
-        # #Fixed Window Forecasting
-        # am = arch_model(single_roadmap.iloc[:,1], vol="Garch", p=1, o=0, q=1, dist="Normal")
-        # res = am.fit(last_obs="2019-10-1", update_freq=5)
-        # forecasts = res.forecast(horizon=5, reindex=False)
-        # print(forecasts.variance.dropna().head())
-        # fixed_win_fcst = forecasts.variance.dropna()
-     #======================   
-          #using Rolling Window Forecasting
-          #Rolling window forecasts use a fixed sample length and then produce one-step from the final observation. 
-          #These can be implemented using first_obs and last_obs
+#run garch(1,1) #specifying the model and estimating parameters.    
+        #using Rolling Window Forecasting
+        #Rolling window forecasts use a fixed sample length and then produce one-step from the final observation. 
+        #These can be implemented using first_obs and last_obs
         index = single_roadmap.iloc[:,1].index
         start_loc = 0
         end_loc = np.where(index >= f"{single_roadmap.index[2]}")[0].min() #training dataset order
@@ -190,24 +133,13 @@ for i in region.columns:
                                     f"{sin_rm_fcst.columns[4]}": "roadmap_invoice_qty_pct_change_realised_volatility",
                                     f"{sin_rm_fcst.columns[5]}": "roadmap_invoice_qty_pct_change_ngtv_realised_volatility"
                                     }, inplace = True)
-     # #=======================   
-################test，配合Line 9~27        
-        # #trying to plot GARCH Residual
-        # model_garch_1_1 = arch_model(single_roadmap.iloc[:,1], mean = "Constant", vol = "GARCH", p = 1, o=0, q = 1, dist="Normal")
-        # results_garch_1_1 = model_garch_1_1.fit(disp='off')
-        # resid = results_garch_1_1.resid
-        # st_resid = np.divide(resid, results_garch_1_1.conditional_volatility)
-        # ts_plot(resid, st_resid)
-        # results_garch_1_1.summary()
-######################
-#===================
+
         #Append road_map fcst
         df = df.append(sin_rm_fcst)
         
         # #Merge as final output #No need merge as final now
         # final_df = orig_new_tp.merge(single_roadmap, how='left', left_index=True, right_index=True)
         # final_ttl_df = final_ttl_df.merge(final_df, how='left', left_index=True, right_index=True)
-#===================
     except:
         pass
 
